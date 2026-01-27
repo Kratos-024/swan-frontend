@@ -10,11 +10,12 @@ import {
 import P from "pino";
 import QRCode from "qrcode";
 import NodeCache from "node-cache";
-import BOOM, { Boom } from "@hapi/boom";
-import { sendTextMessage } from "./messages_controller.js";
+import { Boom } from "@hapi/boom";
+import { sendImgMessage, sendImgQuery, sendTextMessage } from "./messages_controller.js";
 import fs, { type WriteFileOptions } from "fs";
 import ffmpeg from "fluent-ffmpeg";
 import ffmpegPath from "@ffmpeg-installer/ffmpeg";
+
 ffmpeg.setFfmpegPath(ffmpegPath.path);
 const outStream = fs.createWriteStream("./output.mp3");
 const groupCache = new NodeCache({ stdTTL: 5 * 60, useClones: false });
@@ -127,17 +128,25 @@ const startBot = async () => {
               reuploadRequest: socket.updateMediaMessage,
             },
           );
-          fs.writeFile("image.png", img_buffer, (err) => {
-            if (err) throw err;
-            console.log("image saved successfully");
-          });
+          const response = await sendImgMessage(img_buffer)
+          if (!key?.remoteJid) {
+            return;
+          }
+    
+   
+          socket.sendMessage(key.remoteJid, { text: response || "" });
         } else if (message.message?.conversation) {
           if (!key?.remoteJid) {
             return;
           }
-          const reply = sendTextMessage(message?.message?.conversation);
-          socket.sendMessage(key.remoteJid, { text: (await reply) || "" });
-        }
+          const reply = await sendImgQuery(message?.message?.conversation);
+           //@ts-ignore
+          const img_buffer_= Buffer.from(reply,'base64')
+          console.log('sending dog image')
+      
+          socket.sendMessage(key.remoteJid, { image: img_buffer_,caption:"here is your result" });
+         }
+
       }
     } catch (error) {
       console.log(error);

@@ -1,6 +1,11 @@
 const URI = "http://127.0.0.1:8000";
+import fs, { type WriteFileOptions } from "fs";
+
 type BackendResponse = {
   reply: string;
+};
+type BufferResponse = {
+  reply: string | ArrayBufferView<ArrayBufferLike>;
 };
 
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
@@ -36,30 +41,54 @@ const sendTextMessage = async (message: string) => {
       { "content-Type": "application/json" },
       { message, thread_id: "123" },
     );
+      console.log('sdfjiofsdiosdfo')
 
     if (response) {
       const data = response["reply"];
+
       return data;
     }
   } catch (error) {
     console.log("Error has been occured ", error);
   }
 };
-const sendImgMessage = async (message: string) => {
+
+const sendImgQuery = async (img_query: string) => {
   try {
-    const response = await baseRequest<BackendResponse>(
-      `${URI}/img`,
+    const response = await baseRequest<BufferResponse>(
+      `${URI}/chat-img`,
       "POST",
       { "content-Type": "application/json" },
-      { message, thread_id: "123" },
+      { 'img_query':img_query, },
+    );
+    if (response) {
+      
+      const data = response["reply"];  
+
+
+          
+      return data;
+    }
+  } catch (error) {
+    console.log("Error has been occured ", error);
+  }
+};
+const sendImgMessage = async (img_buffer: Buffer<ArrayBufferLike>) => {
+  try {
+    const response = await baseRequest<BackendResponse>(
+      `${URI}/create-embed`,
+      "POST",
+      { "content-Type": "application/json" },
+      { 'buffer':img_buffer, },
     );
 
     if (response) {
       const data = response["reply"];
+        
       return data;
     }
   } catch (error) {
     console.log("Error has been occured ", error);
   }
 };
-export { sendTextMessage };
+export { sendTextMessage ,sendImgMessage,sendImgQuery};
