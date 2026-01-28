@@ -15,7 +15,10 @@ import { sendImgMessage, sendImgQuery, sendTextMessage } from "./messages_contro
 import fs, { type WriteFileOptions } from "fs";
 import ffmpeg from "fluent-ffmpeg";
 import ffmpegPath from "@ffmpeg-installer/ffmpeg";
-
+export type AuthType = {
+  auth: boolean;
+  url_string:string
+};
 ffmpeg.setFfmpegPath(ffmpegPath.path);
 const outStream = fs.createWriteStream("./output.mp3");
 const groupCache = new NodeCache({ stdTTL: 5 * 60, useClones: false });
@@ -87,71 +90,80 @@ const startBot = async () => {
         }
       } else if (connection === "open") {
         console.log("Opened connection successfully!");
-      }
-    },
-  );
+        }
+      },
+     );
 
-  socket.ev.on("messages.upsert", async (even_messages) => {
-    const { messages, type, requestId } = even_messages;
-    const key = messages[0]?.key;
-    const message = messages[0];
-    try {
-      if (message) {
-        if (message.message?.audioMessage) {
+    socket.ev.on("messages.upsert", async ({ messages }) => {
+      const message = messages[0];
+      if (!message?.message) return;
+
+      const key = message.key;
+      if (!key?.remoteJid) return;
+
+      try {
+        const msgContent = message.message;
+
+        const downloadBuffer = async () => {
+          return await downloadMediaMessage(
+            message,
+            "buffer",
+            {},
+            { logger: P(), reuploadRequest: socket.updateMediaMessage }
+          );
+        };
+
+        if (msgContent.audioMessage) {
           await getAudio(message);
-        } else if (
-          message.message?.documentMessage &&
-          message.message.documentMessage.mimetype == "application/pdf"
-        ) {
-          const fileMessage = message.message.documentMessage;
-          const file_buffer = await downloadMediaMessage(
-            message,
-            "buffer",
-            {},
-            {
-              logger: P(),
-              reuploadRequest: socket.updateMediaMessage,
-            },
-          );
+        } 
+        else if (msgContent.documentMessage?.mimetype === "application/pdf") {
+          const file_buffer = await downloadBuffer();
           fs.writeFile("output.pdf", file_buffer, (err) => {
-            if (err) throw err;
-            console.log("PDF file has been saved!");
+            if (err) console.error("Error saving PDF:", err);
+            else console.log("PDFsaved!");
           });
-        } else if (message.message?.imageMessage) {
-          const image = message.message.imageMessage;
-          const img_buffer = await downloadMediaMessage(
-            message,
-            "buffer",
-            {},
-            {
-              logger: P(),
-              reuploadRequest: socket.updateMediaMessage,
-            },
-          );
-          const response = await sendImgMessage(img_buffer)
-          if (!key?.remoteJid) {
-            return;
-          }
-    
-   
-          socket.sendMessage(key.remoteJid, { text: response || "" });
-        } else if (message.message?.conversation) {
-          if (!key?.remoteJid) {
-            return;
-          }
-          const reply = await sendImgQuery(message?.message?.conversation);
-           //@ts-ignore
-          const img_buffer_= Buffer.from(reply,'base64')
-          console.log('sending dog image')
-      
-          socket.sendMessage(key.remoteJid, { image: img_buffer_,caption:"here is your result" });
-         }
+        } 
 
+        else if (msgContent.imageMessage) {
+          const img_buffer = await downloadBuffer();
+          const response = await sendImgMessage(img_buffer);
+          if (response && typeof response === 'object' && 'auth' in response) {
+              if (response.auth === false) {
+                  await socket.sendMessage(key.remoteJid, { 
+                      text: `Please authorize here: ${response.url_string}` 
+                  });
+                }} 
+            else if(response && typeof response === 'object' && 'reply' in response )    
+              await socket.sendMessage(key.remoteJid, { text: response['reply']});
+              } 
+        else {
+          const text = msgContent.conversation 
+
+          if (text) {
+            const response = await sendImgQuery(text);
+                 console.log("image");
+            console.log('imageResponse',response)
+              if (response && typeof response == 'object' && 'imageResponse' in response) {
+          //@ts-ignore
+                const img_buffer_ = Buffer.from(response['imageResponse'], "base64");
+           
+                await socket.sendMessage(key.remoteJid, {
+                  image: img_buffer_,
+                  caption: "Here is your result",
+                });
+             
+            // } else {
+            //   const reply = await sendTextMessage(text);
+            //   if (reply) {
+            //     await socket.sendMessage(key.remoteJid, { text: reply });
+            //   }
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error in messages.upsert:", error);
       }
-    } catch (error) {
-      console.log(error);
-    }
-  });
+    });
 };
 
 export default startBot;
