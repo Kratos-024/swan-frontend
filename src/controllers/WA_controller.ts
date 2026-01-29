@@ -11,7 +11,7 @@ import P from "pino";
 import QRCode from "qrcode";
 import NodeCache from "node-cache";
 import { Boom } from "@hapi/boom";
-import { sendImgMessage, sendImgQuery, sendTextMessage } from "./messages_controller.js";
+import { sendImgMessage, sendImgQuery, sendPdfToDrive, sendTextMessage } from "./messages_controller.js";
 import fs, { type WriteFileOptions } from "fs";
 import ffmpeg from "fluent-ffmpeg";
 import ffmpegPath from "@ffmpeg-installer/ffmpeg";
@@ -117,10 +117,12 @@ const startBot = async () => {
           await getAudio(message);
         } 
         else if (msgContent.documentMessage?.mimetype === "application/pdf") {
+
           const file_buffer = await downloadBuffer();
+          const response = await sendPdfToDrive(file_buffer,msgContent.documentMessage?.fileName || 'my_pdf.pdf')
           fs.writeFile("output.pdf", file_buffer, (err) => {
-            if (err) console.error("Error saving PDF:", err);
-            else console.log("PDFsaved!");
+            if (err) console.error("error saving pdf:", err);
+            else console.log("pdfSaved");
           });
         } 
 

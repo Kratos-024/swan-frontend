@@ -98,5 +98,23 @@ const sendImgMessage = async (img_buffer: Buffer<ArrayBufferLike>) => {
 };
 
 
+const sendPdfToDrive = async (pdfBuffer: Buffer<ArrayBufferLike>,pdf_file_name:string) => {
+  try {
+    const response = await baseRequest<ImageEmbedResponse>(
+      `${URI}/send-pdfbuffer`,
+      "POST",
+      { "content-Type": "application/json" },
+     { 
+        buffer: { 
+          data: Array.from(pdfBuffer),
+          pdf_name:pdf_file_name
+        } 
+      }
+    );
+    return response
+  } catch (error) {
+    console.log("Error has been occured ", error);
+  }
+};
 
-export { sendTextMessage ,sendImgMessage,sendImgQuery};
+export { sendTextMessage ,sendImgMessage,sendImgQuery,sendPdfToDrive};
