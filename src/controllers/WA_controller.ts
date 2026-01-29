@@ -120,10 +120,17 @@ const startBot = async () => {
 
           const file_buffer = await downloadBuffer();
           const response = await sendPdfToDrive(file_buffer,msgContent.documentMessage?.fileName || 'my_pdf.pdf')
-          fs.writeFile("output.pdf", file_buffer, (err) => {
-            if (err) console.error("error saving pdf:", err);
-            else console.log("pdfSaved");
-          });
+          
+          if (response && typeof response === 'object' && 'auth' in response) {
+              if (response.auth === false) {
+                  await socket.sendMessage(key.remoteJid, { 
+                      text: `Please authorize here: ${response.url_string}` 
+                  });
+                }}else{
+                  await socket.sendMessage(key.remoteJid, { 
+                      text: `${response?.reply}` 
+                  });
+                }
         } 
 
         else if (msgContent.imageMessage) {

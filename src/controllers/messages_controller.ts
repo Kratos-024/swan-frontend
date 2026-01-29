@@ -8,7 +8,7 @@ export type AuthType = {
   auth: boolean;
   url_string:string
 };
-type ImageEmbedResponse = ImageEmbed | AuthType
+type ImagePdfEmbedResponse = ImageEmbed | AuthType
 
 
 type BufferResponse = {
@@ -80,7 +80,7 @@ const sendImgQuery = async (img_query: string) => {
 const sendImgMessage = async (img_buffer: Buffer<ArrayBufferLike>) => {
   try {
 
-    const response = await baseRequest<ImageEmbedResponse>(
+    const response = await baseRequest<ImagePdfEmbedResponse>(
       `${URI}/create-embed`,
       "POST",
       { "content-Type": "application/json" },
@@ -100,15 +100,15 @@ const sendImgMessage = async (img_buffer: Buffer<ArrayBufferLike>) => {
 
 const sendPdfToDrive = async (pdfBuffer: Buffer<ArrayBufferLike>,pdf_file_name:string) => {
   try {
-    const response = await baseRequest<ImageEmbedResponse>(
+    const response = await baseRequest<ImagePdfEmbedResponse>(
       `${URI}/send-pdfbuffer`,
       "POST",
       { "content-Type": "application/json" },
      { 
         buffer: { 
           data: Array.from(pdfBuffer),
-          pdf_name:pdf_file_name
-        } 
+         
+        } , pdf_name:pdf_file_name
       }
     );
     return response
