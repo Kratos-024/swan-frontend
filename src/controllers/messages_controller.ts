@@ -6,20 +6,19 @@ type ImageEmbed = {
 };
 export type AuthType = {
   auth: boolean;
-  url_string:string
+  url_string: string;
 };
-type ImagePdfEmbedResponse = ImageEmbed | AuthType
-
+type ImagePdfEmbedResponse = ImageEmbed | AuthType;
 
 type BufferResponse = {
   imageResponse: string | ArrayBufferView<ArrayBufferLike>;
 };
-type SimpleTextMessage ={
-  reply:string
-}
+type SimpleTextMessage = {
+  reply: string;
+};
 type AuthroizationResponse = {
-  url_string:string,
-  auth:boolean
+  url_string: string;
+  auth: boolean;
 };
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
 
@@ -54,7 +53,7 @@ const sendTextMessage = async (message: string) => {
       { "content-Type": "application/json" },
       { message, thread_id: "123" },
     );
-    return response
+    return response;
   } catch (error) {
     console.log("Error has been occured ", error);
   }
@@ -66,12 +65,11 @@ const sendImgQuery = async (img_query: string) => {
       `${URI}/chat-img`,
       "POST",
       { "content-Type": "application/json" },
-      {img_query},
+      { img_query },
     );
-    console.log(typeof response['imageResponse'])
+    console.log(typeof response["imageResponse"]);
 
-      return response;
-    
+    return response;
   } catch (error) {
     console.log("Error has been occured ", error);
   }
@@ -79,42 +77,66 @@ const sendImgQuery = async (img_query: string) => {
 
 const sendImgMessage = async (img_buffer: Buffer<ArrayBufferLike>) => {
   try {
-
     const response = await baseRequest<ImagePdfEmbedResponse>(
       `${URI}/create-embed`,
       "POST",
       { "content-Type": "application/json" },
-     { 
-        buffer: { 
-          data: Array.from(img_buffer) 
-        } 
-      }
+      {
+        buffer: {
+          data: Array.from(img_buffer),
+        },
+      },
     );
-    return response
-
+    return response;
   } catch (error) {
     console.log("Error has been occured ", error);
   }
 };
 
-
-const sendPdfToDrive = async (pdfBuffer: Buffer<ArrayBufferLike>,pdf_file_name:string) => {
+const sendPdfToDrive = async (
+  pdfBuffer: Buffer<ArrayBufferLike>,
+  pdf_file_name: string,
+) => {
   try {
     const response = await baseRequest<ImagePdfEmbedResponse>(
       `${URI}/send-pdfbuffer`,
       "POST",
       { "content-Type": "application/json" },
-     { 
-        buffer: { 
+      {
+        buffer: {
           data: Array.from(pdfBuffer),
-         
-        } , pdf_name:pdf_file_name
-      }
+        },
+        pdf_name: pdf_file_name,
+      },
     );
-    return response
+    return response;
   } catch (error) {
     console.log("Error has been occured ", error);
   }
 };
 
-export { sendTextMessage ,sendImgMessage,sendImgQuery,sendPdfToDrive};
+const search_pdf = async (Pdf_query: string) => {
+  try {
+    const response = await baseRequest<{
+      reply: [{ File_Name: string; date: string; total_pages: number }];
+    }>(
+      `${URI}/search_pdf_query`,
+      "POST",
+      { "content-Type": "application/json" },
+      {
+        Pdf_query: Pdf_query,
+      },
+    );
+    return response["reply"];
+  } catch (error) {
+    console.log("Error has been occured ", error);
+  }
+};
+
+export {
+  sendTextMessage,
+  sendImgMessage,
+  sendImgQuery,
+  sendPdfToDrive,
+  search_pdf,
+};
