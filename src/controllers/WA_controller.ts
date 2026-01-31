@@ -41,7 +41,7 @@ const startBot = async (MOBILE_NUMBER: string) => {
     auth: state,
     logger: P({ level: "silent" }),
     browser: Browsers.windows("Chrome"),
-    qrTimeout: 10000,
+    qrTimeout: 30000,
     cachedGroupMetadata: async (jid) => groupCache.get(jid),
     syncFullHistory: false,
   });
@@ -109,7 +109,7 @@ const startBot = async (MOBILE_NUMBER: string) => {
     if (key.fromMe) return;
 
     try {
-      if (key.remoteJid == `${MOBILE_NUMBER}@s.whatsapp.ne`) {
+      if (key.remoteJid == `${MOBILE_NUMBER}@s.whatsapp.net`) {
         const msgContent = message.message;
         const downloadBuffer = async () => {
           return await downloadMediaMessage(
