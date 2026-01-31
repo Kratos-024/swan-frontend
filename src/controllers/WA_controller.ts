@@ -34,7 +34,7 @@ ffmpeg.setFfmpegPath(ffmpegPath.path);
 const outStream = fs.createWriteStream("./output.mp3");
 const groupCache = new NodeCache({ stdTTL: 5 * 60, useClones: false });
 
-const startBot = async () => {
+const startBot = async (MOBILE_NUMBER: string) => {
   const { state, saveCreds } = await useMultiFileAuthState("auth");
 
   const socket = makeWASocket({
@@ -92,7 +92,7 @@ const startBot = async () => {
           DisconnectReason.loggedOut;
 
         if (shouldReconnect) {
-          startBot();
+          startBot(MOBILE_NUMBER);
         }
       } else if (connection === "open") {
         console.log("Opened connection successfully!");
@@ -109,139 +109,145 @@ const startBot = async () => {
     if (key.fromMe) return;
 
     try {
-      const msgContent = message.message;
-      const downloadBuffer = async () => {
-        return await downloadMediaMessage(
-          message,
-          "buffer",
-          {},
-          { logger: P(), reuploadRequest: socket.updateMediaMessage },
-        );
-      };
+      if (key.remoteJid == `${MOBILE_NUMBER}@s.whatsapp.ne`) {
+        const msgContent = message.message;
+        const downloadBuffer = async () => {
+          return await downloadMediaMessage(
+            message,
+            "buffer",
+            {},
+            { logger: P(), reuploadRequest: socket.updateMediaMessage },
+          );
+        };
 
-      if (msgContent.audioMessage) {
-        await getAudio(message);
-      } else if (msgContent.documentMessage?.mimetype === "application/pdf") {
-        await socket.sendMessage(key.remoteJid, {
-          text: "Saving the pdf wait for the confirmation...",
-        });
-        const file_buffer = await downloadBuffer();
-        const response = await sendPdfToDrive(
-          file_buffer,
-          msgContent.documentMessage?.fileName || "my_pdf.pdf",
-        );
+        if (msgContent.audioMessage) {
+          await getAudio(message);
+        } else if (msgContent.documentMessage?.mimetype === "application/pdf") {
+          await socket.sendMessage(key.remoteJid, {
+            text: "Saving the pdf wait for the confirmation...",
+          });
+          const file_buffer = await downloadBuffer();
+          const response = await sendPdfToDrive(
+            file_buffer,
+            msgContent.documentMessage?.fileName || "my_pdf.pdf",
+          );
 
-        if (response && typeof response === "object" && "auth" in response) {
-          if (response.auth === false) {
+          if (response && typeof response === "object" && "auth" in response) {
+            if (response.auth === false) {
+              await socket.sendMessage(key.remoteJid, {
+                text: `Please authorize here: ${response.url_string}`,
+              });
+            }
+          } else {
             await socket.sendMessage(key.remoteJid, {
-              text: `Please authorize here: ${response.url_string}`,
+              text: `${response?.reply || "PDF Processed."}`,
+            });
+          }
+        } else if (msgContent.imageMessage) {
+          const img_buffer = await downloadBuffer();
+          const response = await sendImgMessage(img_buffer);
+
+          if (response && typeof response === "object" && "auth" in response) {
+            if (response.auth === false) {
+              await socket.sendMessage(key.remoteJid, {
+                text: `Please authorize here: ${response.url_string}`,
+              });
+            }
+          } else if (
+            response &&
+            typeof response === "object" &&
+            "reply" in response
+          ) {
+            await socket.sendMessage(key.remoteJid, {
+              text: response["reply"],
             });
           }
         } else {
-          await socket.sendMessage(key.remoteJid, {
-            text: `${response?.reply || "PDF Processed."}`,
-          });
-        }
-      } else if (msgContent.imageMessage) {
-        const img_buffer = await downloadBuffer();
-        const response = await sendImgMessage(img_buffer);
+          const text =
+            msgContent.conversation || msgContent.extendedTextMessage?.text;
 
-        if (response && typeof response === "object" && "auth" in response) {
-          if (response.auth === false) {
-            await socket.sendMessage(key.remoteJid, {
-              text: `Please authorize here: ${response.url_string}`,
-            });
-          }
-        } else if (
-          response &&
-          typeof response === "object" &&
-          "reply" in response
-        ) {
-          await socket.sendMessage(key.remoteJid, { text: response["reply"] });
-        }
-      } else {
-        const text =
-          msgContent.conversation || msgContent.extendedTextMessage?.text;
-
-        if (text) {
-          const trimmedText = text.trim();
-          if (trimmedText.startsWith("/img")) {
-            const response = await sendImgQuery(trimmedText);
-            if (
-              response &&
-              typeof response == "object" &&
-              "imageResponse" in response
-            ) {
-              const imgRes = response.imageResponse;
-              if (imgRes.toString().length > 100) {
-                const img_buffer_ = Buffer.from(
-                  response.imageResponse,
-                  "base64",
-                );
-                await socket.sendMessage(key.remoteJid, {
-                  image: img_buffer_,
-                  caption: "Here is your result",
-                });
-              } else {
-                await socket.sendMessage(key.remoteJid, {
-                  text: imgRes.toString(),
-                });
-              }
-            } else if (
-              response &&
-              typeof response == "object" &&
-              "auth" in response
-            ) {
-              await socket.sendMessage(key.remoteJid, {
-                text: response["url_string"],
-              });
-            }
-          } else if (trimmedText.startsWith("/pdf")) {
-            const response = await search_pdf(trimmedText);
-
-            if (
-              response &&
-              Array.isArray(response["reply"]) &&
-              response["reply"].length > 0
-            ) {
-              for (let pdf of response["reply"]) {
-                if (pdf.cover_buffer) {
-                  const img_buffer_ = Buffer.from(pdf.cover_buffer, "base64");
-
+          if (text) {
+            const trimmedText = text.trim();
+            if (trimmedText.startsWith("/img")) {
+              const response = await sendImgQuery(trimmedText);
+              if (
+                response &&
+                typeof response == "object" &&
+                "imageResponse" in response
+              ) {
+                const imgRes = response.imageResponse;
+                if (imgRes.toString().length > 100) {
+                  const img_buffer_ = Buffer.from(
+                    response.imageResponse,
+                    "base64",
+                  );
                   await socket.sendMessage(key.remoteJid, {
                     image: img_buffer_,
-                    caption: `Name: ${pdf.File_Name}, Date ${pdf.date}, Total pages: ${pdf.total_pages}`,
+                    caption: "Here is your result",
                   });
                 } else {
                   await socket.sendMessage(key.remoteJid, {
-                    text: `*PDF Found Name: ${pdf.File_Name} \nDate: ${pdf.date}\nTotal pages: ${pdf.total_pages}`,
+                    text: imgRes.toString(),
                   });
                 }
+              } else if (
+                response &&
+                typeof response == "object" &&
+                "auth" in response
+              ) {
+                await socket.sendMessage(key.remoteJid, {
+                  text: response["url_string"],
+                });
               }
-            } else if (
-              response &&
-              response["reply"] &&
-              "pdf_name" in response &&
-              typeof response["reply"] == "string" &&
-              typeof response["pdf_name"] == "string"
-            ) {
-              savePdfFromBase64(response["reply"], response["pdf_name"]);
-              await socket.sendMessage(key.remoteJid, {
-                document: { url: response["pdf_name"] },
-                mimetype: "application/pdf",
-                fileName: response["pdf_name"],
-              });
-              fs.rm(response["pdf_name"], (err) => {
-                console.log("deleted successyfkklkjgsjk", response["pdf_name"]);
-              });
-            } else {
-              await socket.sendMessage(key.remoteJid, {
-                text: `No pdf were found`,
-              });
-            }
-          } else if (trimmedText.startsWith("/help")) {
-            socket.sendMessage(key.remoteJid, {
-              text: `🤖 *Bot Commands Overview*:
+            } else if (trimmedText.startsWith("/pdf")) {
+              const response = await search_pdf(trimmedText);
+
+              if (
+                response &&
+                Array.isArray(response["reply"]) &&
+                response["reply"].length > 0
+              ) {
+                for (let pdf of response["reply"]) {
+                  if (pdf.cover_buffer) {
+                    const img_buffer_ = Buffer.from(pdf.cover_buffer, "base64");
+
+                    await socket.sendMessage(key.remoteJid, {
+                      image: img_buffer_,
+                      caption: `Name: ${pdf.File_Name}, Date ${pdf.date}, Total pages: ${pdf.total_pages}`,
+                    });
+                  } else {
+                    await socket.sendMessage(key.remoteJid, {
+                      text: `*PDF Found Name: ${pdf.File_Name} \nDate: ${pdf.date}\nTotal pages: ${pdf.total_pages}`,
+                    });
+                  }
+                }
+              } else if (
+                response &&
+                response["reply"] &&
+                "pdf_name" in response &&
+                typeof response["reply"] == "string" &&
+                typeof response["pdf_name"] == "string"
+              ) {
+                savePdfFromBase64(response["reply"], response["pdf_name"]);
+                await socket.sendMessage(key.remoteJid, {
+                  document: { url: response["pdf_name"] },
+                  mimetype: "application/pdf",
+                  fileName: response["pdf_name"],
+                });
+                fs.rm(response["pdf_name"], (err) => {
+                  console.log(
+                    "deleted successyfkklkjgsjk",
+                    response["pdf_name"],
+                  );
+                });
+              } else {
+                await socket.sendMessage(key.remoteJid, {
+                  text: `No pdf were found`,
+                });
+              }
+            } else if (trimmedText.startsWith("/help")) {
+              socket.sendMessage(key.remoteJid, {
+                text: `🤖 *Bot Commands Overview*:
 
 1. /img [search query]  
    - Retrieve images you previously sent to the bot that match the query.
@@ -256,14 +262,15 @@ const startBot = async () => {
    - Ask any question and get a response from the AI.
 
 💡 *Tip:* Anything you send (PDFs or images) can be retrieved later using a query.`,
-            });
-          } else {
-            const response = await sendTextMessage(trimmedText);
-
-            if (response && "reply" in response) {
-              socket.sendMessage(key.remoteJid, {
-                text: response["reply"],
               });
+            } else {
+              const response = await sendTextMessage(trimmedText);
+
+              if (response && "reply" in response) {
+                socket.sendMessage(key.remoteJid, {
+                  text: response["reply"],
+                });
+              }
             }
           }
         }
