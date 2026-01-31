@@ -1,5 +1,5 @@
 const URI = "http://127.0.0.1:8000";
-import fs, { type WriteFileOptions } from "fs";
+import type { WithImplicitCoercion } from "buffer";
 
 type ImageEmbed = {
   reply: string;
@@ -11,15 +11,12 @@ export type AuthType = {
 type ImagePdfEmbedResponse = ImageEmbed | AuthType;
 
 type BufferResponse = {
-  imageResponse: string | ArrayBufferView<ArrayBufferLike>;
+  imageResponse: string | WithImplicitCoercion<string>;
 };
 type SimpleTextMessage = {
   reply: string;
 };
-type AuthroizationResponse = {
-  url_string: string;
-  auth: boolean;
-};
+
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
 
 export async function baseRequest<TResponse>(
@@ -61,13 +58,13 @@ const sendTextMessage = async (message: string) => {
 
 const sendImgQuery = async (img_query: string) => {
   try {
-    const response = await baseRequest<BufferResponse>(
+    const response = await baseRequest<BufferResponse | AuthType>(
       `${URI}/chat-img`,
       "POST",
       { "content-Type": "application/json" },
       { img_query },
     );
-    console.log(typeof response["imageResponse"]);
+    console.log(response);
 
     return response;
   } catch (error) {
@@ -78,7 +75,7 @@ const sendImgQuery = async (img_query: string) => {
 const sendImgMessage = async (img_buffer: Buffer<ArrayBufferLike>) => {
   try {
     const response = await baseRequest<ImagePdfEmbedResponse>(
-      `${URI}/create-embed`,
+      `${URI}/create-embed-img`,
       "POST",
       { "content-Type": "application/json" },
       {
@@ -118,7 +115,19 @@ const sendPdfToDrive = async (
 const search_pdf = async (Pdf_query: string) => {
   try {
     const response = await baseRequest<{
-      reply: [{ File_Name: string; date: string; total_pages: number }];
+      reply:
+        | [
+            {
+              File_Name: string;
+              date: string;
+              total_pages: number;
+              cover_buffer: string;
+            },
+          ]
+        | {
+            reply: string;
+            pdf_name: string;
+          };
     }>(
       `${URI}/search_pdf_query`,
       "POST",
@@ -127,7 +136,8 @@ const search_pdf = async (Pdf_query: string) => {
         Pdf_query: Pdf_query,
       },
     );
-    return response["reply"];
+
+    return response;
   } catch (error) {
     console.log("Error has been occured ", error);
   }
