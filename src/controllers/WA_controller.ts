@@ -109,8 +109,10 @@ const startBot = async (MOBILE_NUMBER: string) => {
     if (key.fromMe) return;
 
     try {
+      console.log(`$key remote jid `, key);
+
       console.log(`${MOBILE_NUMBER}@s.whatsapp.net`);
-      if (key.remoteJid == `${MOBILE_NUMBER}@s.whatsapp.net`) {
+      if (key.remoteJidAlt == `${MOBILE_NUMBER}@s.whatsapp.net`) {
         const msgContent = message.message;
         const downloadBuffer = async () => {
           return await downloadMediaMessage(
