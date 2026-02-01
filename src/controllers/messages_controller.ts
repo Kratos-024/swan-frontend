@@ -1,4 +1,4 @@
-const URI = "http://127.0.0.1:8000";
+const URI = process.env.BACKEND_URI;
 import type { WithImplicitCoercion } from "buffer";
 
 type ImageEmbed = {
